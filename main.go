@@ -1,13 +1,235 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"github.com/gorilla/mux"
 	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"slices"
+	"strconv"
 
+	"github.com/gorilla/mux"
 )
 
-func main() {
+type Customer struct {
+	Id        int    `json:"id"`
+	Name      string `json:"name"`
+	Role      string `json:"role"`
+	Email     string `json:"email"`
+	Phone     string `json:"phone"`
+	Contacted bool   `json:"contacted"`
+}
 
+var	c1 = Customer{
+		Id:1,
+		Name: "John Doe",
+		Role: "user",
+		Email:"john.doe@gmail.com",
+		Phone: "0041 76 123 45 67",
+		Contacted: false,
+	}
+
+var	c2 = Customer{
+		Id:2,
+		Name: "John Smyth",
+		Role: "admin",
+		Email:"john.smyth@gmail.com",
+		Phone: "0041 78 123 45 67",
+		Contacted: true,
+	}
+
+var	c3 = Customer{
+		Id:3,
+		Name: "Joan Roberts",
+		Role: "user",
+		Email:"joan.roberts@gmail.com",
+		Phone: "0041 79 123 45 67",
+		Contacted: true,
+	}
+
+var	data_base =[]Customer{c1,c2,c3}
+
+func getCustomers(respWriter http.ResponseWriter, request *http.Request){
+	respWriter.Header().Set("Content-Type", "application/json")
+	respWriter.WriteHeader(http.StatusOK)
+	json.NewEncoder(respWriter).Encode(data_base)
+}
+
+func getCustomer(respWriter http.ResponseWriter, request *http.Request){
+	respWriter.Header().Set("Content-Type", "application/json")
+
+	idStr := mux.Vars(request)["id"]
+	id, err := strconv.Atoi(idStr)
+
+    if err != nil {
+        http.Error(respWriter, "Invalid ID", http.StatusBadRequest)
+        return
+    }
+	customers_ids := []int{}
+
+	for _,customer :=range data_base {
+		customers_ids= append(customers_ids, customer.Id)
+	}
+
+	if slices.Contains(customers_ids, id ) {
+		respWriter.WriteHeader(http.StatusOK)
+		response := Customer {}
+			for _,customer :=range data_base {
+				if id == customer.Id{
+					response= customer
+				}
+			}
+		json.NewEncoder(respWriter).Encode(response)
+	} else {
+		respWriter.WriteHeader(http.StatusNotFound)
+		respWriter.Write([]byte("Customer not found"))
+	}
+}
+
+func showCustomers(respWriter http.ResponseWriter, request *http.Request){
+	respWriter.Header().Set("Content-Type", "text/html")
+	respWriter.WriteHeader(http.StatusOK)
+
+	for _,value := range data_base {
+		fmt.Fprintf(respWriter, `
+			<fragment>
+				<h6>%v</h6>
+				<p>%v</p>
+				<p>%v</p>
+			</fragment>
+		`,
+		value.Name,
+		value.Email,
+		value.Phone,
+	)
+	}
+}
+
+func createCustomer(respWriter http.ResponseWriter, request *http.Request){
+	respWriter.Header().Set("Content-Type", "application/json")
+	
+	reqBody, error := io.ReadAll(request.Body)
+
+	if error != nil || len(reqBody) == 0 {
+		http.Error(respWriter, "Missing body", http.StatusBadRequest)
+		return
+	}
+	newCustomer := Customer{}
+	// parse json body
+	if err := json.Unmarshal(reqBody, &newCustomer); err != nil {
+		http.Error(respWriter, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	//json.Unmarshal(reqBody, &newCustomer)
+
+	customers_ids := []int{}
+
+	for _,customer :=range data_base {
+		customers_ids= append(customers_ids, customer.Id)
+	}
+
+	if slices.Contains(customers_ids, newCustomer.Id){
+		respWriter.WriteHeader(http.StatusConflict)
+		respWriter.Write([]byte("Customer with this id already exist"))
+	} else {
+		data_base = append(data_base, newCustomer)
+		respWriter.WriteHeader(http.StatusCreated)
+	}
+
+	json.NewEncoder(respWriter).Encode(data_base)
+
+}
+
+func updateCustomer(respWriter http.ResponseWriter, request *http.Request){
+	respWriter.Header().Set("Content-Type", "application/json")
+	
+	idStr := mux.Vars(request)["id"]
+
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+    		http.Error(respWriter, "Invalid ID", http.StatusBadRequest)
+    	return
+	}
+
+	reqBody, error := io.ReadAll(request.Body)
+
+	if error != nil || len(reqBody) == 0 {
+		http.Error(respWriter, "Missing body", http.StatusBadRequest)
+		return
+	}
+
+	newCustomer := Customer{}
+
+	// parse json body
+	if err := json.Unmarshal(reqBody, &newCustomer); err != nil {
+		http.Error(respWriter, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	customers_ids := []int{}
+
+	for _,customer :=range data_base {
+		customers_ids= append(customers_ids, customer.Id)
+	}
+
+	if slices.Contains(customers_ids, newCustomer.Id){
+		for i,customer :=range data_base{
+			if id == customer.Id {
+				newCustomer.Id=customer.Id
+				data_base[i] = newCustomer
+			}
+		}
+		respWriter.WriteHeader(http.StatusOK)
+	} else {
+		respWriter.WriteHeader(http.StatusNotFound)
+		respWriter.Write([]byte("Customer not found"))
+		return
+	}
+	json.NewEncoder(respWriter).Encode(data_base)
+}
+
+func deleteCustomer(respWriter http.ResponseWriter, request *http.Request){
+	respWriter.Header().Set("Content-Type", "application/json")
+
+	idStr := mux.Vars(request)["id"]
+	id, err := strconv.Atoi(idStr)
+
+    if err != nil {
+        http.Error(respWriter, "Invalid ID", http.StatusBadRequest)
+        return
+    }
+	customers_ids := []int{}
+
+	for _,customer :=range data_base {
+		customers_ids= append(customers_ids, customer.Id)
+	}
+
+	if slices.Contains(customers_ids, id ){
+		for i,customer :=range data_base {
+			if id == customer.Id{
+				data_base = slices.Delete(data_base,i, i+1)
+				break
+			}
+		}
+	} else {
+		respWriter.WriteHeader(http.StatusNotFound)
+		respWriter.Write([]byte("Customer not found"))
+		return
+	}
+
+	respWriter.WriteHeader(http.StatusOK)
+	json.NewEncoder(respWriter).Encode(data_base)
+}
+func main() {
+	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/", showCustomers)
+	router.HandleFunc("/customers", getCustomers)
+	router.HandleFunc("/customers/{id}", getCustomer)
+	router.HandleFunc("/customers", createCustomer).Methods("POST")
+	router.HandleFunc("/customers/{id}", updateCustomer).Methods("PATCH")
+	router.HandleFunc("/customers/{id}", deleteCustomer).Methods("DELETE")
+
+	fmt.Println("server is starting")
+	http.ListenAndServe(":3000", router)
 }
