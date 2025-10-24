@@ -6,44 +6,43 @@ import (
 	"io"
 	"net/http"
 	"slices"
-	"strconv"
 
 	"github.com/gorilla/mux"
 )
 
 type Customer struct {
-	Id        int    `json:"id"`
+	Id        string    `json:"id"`
 	Name      string `json:"name"`
 	Role      string `json:"role"`
 	Email     string `json:"email"`
-	Phone     string `json:"phone"`
+	Phone     int `json:"phone"`
 	Contacted bool   `json:"contacted"`
 }
 
 var	c1 = Customer{
-		Id:1,
+		Id:"1",
 		Name: "John Doe",
 		Role: "user",
 		Email:"john.doe@gmail.com",
-		Phone: "0041 76 123 45 67",
+		Phone: 0041761234567,
 		Contacted: false,
 	}
 
 var	c2 = Customer{
-		Id:2,
+		Id:"2",
 		Name: "John Smyth",
 		Role: "admin",
 		Email:"john.smyth@gmail.com",
-		Phone: "0041 78 123 45 67",
+		Phone: 0041761234567,
 		Contacted: true,
 	}
 
 var	c3 = Customer{
-		Id:3,
+		Id:"3",
 		Name: "Joan Roberts",
 		Role: "user",
 		Email:"joan.roberts@gmail.com",
-		Phone: "0041 79 123 45 67",
+		Phone: 0041761234567,
 		Contacted: true,
 	}
 
@@ -58,14 +57,9 @@ func getCustomers(respWriter http.ResponseWriter, request *http.Request){
 func getCustomer(respWriter http.ResponseWriter, request *http.Request){
 	respWriter.Header().Set("Content-Type", "application/json")
 
-	idStr := mux.Vars(request)["id"]
-	id, err := strconv.Atoi(idStr)
+	id := mux.Vars(request)["id"]
 
-    if err != nil {
-        http.Error(respWriter, "Invalid ID", http.StatusBadRequest)
-        return
-    }
-	customers_ids := []int{}
+	customers_ids := []string{}
 
 	for _,customer :=range data_base {
 		customers_ids= append(customers_ids, customer.Id)
@@ -89,7 +83,20 @@ func getCustomer(respWriter http.ResponseWriter, request *http.Request){
 func showCustomers(respWriter http.ResponseWriter, request *http.Request){
 	respWriter.Header().Set("Content-Type", "text/html")
 	respWriter.WriteHeader(http.StatusOK)
-
+	fmt.Fprintf(respWriter, `
+			<fragment>
+				<h4>Avaiable Endpoints</h4>
+					<ul>
+						<li>GET http://localhost:3000/customers</li>
+						<li>GET http://localhost:3000/customers/{id}</li>
+						<li>POST http://localhost:3000/customers</li>
+						<li>PATCH http://localhost:3000/customers/{id}</li>
+						<li>DELETE http://localhost:3000/customers/{id}</li>
+					</ul>
+			</fragment>
+			<h4>Customers</h4>
+		`,
+	)
 	for _,value := range data_base {
 		fmt.Fprintf(respWriter, `
 			<fragment>
@@ -105,36 +112,47 @@ func showCustomers(respWriter http.ResponseWriter, request *http.Request){
 	}
 }
 
-func createCustomer(respWriter http.ResponseWriter, request *http.Request){
+func addCustomer(respWriter http.ResponseWriter, request *http.Request){
 	respWriter.Header().Set("Content-Type", "application/json")
 	
 	reqBody, error := io.ReadAll(request.Body)
 
 	if error != nil || len(reqBody) == 0 {
-		http.Error(respWriter, "Missing body", http.StatusBadRequest)
+		respWriter.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	newCustomer := Customer{}
 	// parse json body
 	if err := json.Unmarshal(reqBody, &newCustomer); err != nil {
-		http.Error(respWriter, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		respWriter.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//json.Unmarshal(reqBody, &newCustomer)
 
-	customers_ids := []int{}
+    // Auto-generate ID if missing
+    if newCustomer.Id == "" {
+        maxID := 0
+        for _, c := range data_base {
+            // Convert existing string ID to int
+            var cid int
+            fmt.Sscanf(c.Id, "%d", &cid)
+            if cid > maxID {
+                maxID = cid
+            }
+        }
+        newCustomer.Id = fmt.Sprintf("%d", maxID+1)
+    }
 
-	for _,customer :=range data_base {
-		customers_ids= append(customers_ids, customer.Id)
-	}
+    // Check for duplicate ID
+    for _, c := range data_base {
+        if c.Id == newCustomer.Id {
+            respWriter.WriteHeader(http.StatusConflict)
+            return
+        }
+    }
 
-	if slices.Contains(customers_ids, newCustomer.Id){
-		respWriter.WriteHeader(http.StatusConflict)
-		respWriter.Write([]byte("Customer with this id already exist"))
-	} else {
 		data_base = append(data_base, newCustomer)
 		respWriter.WriteHeader(http.StatusCreated)
-	}
+
 
 	json.NewEncoder(respWriter).Encode(data_base)
 
@@ -143,19 +161,12 @@ func createCustomer(respWriter http.ResponseWriter, request *http.Request){
 func updateCustomer(respWriter http.ResponseWriter, request *http.Request){
 	respWriter.Header().Set("Content-Type", "application/json")
 	
-	idStr := mux.Vars(request)["id"]
-
-	id, err := strconv.Atoi(idStr)
-
-	if err != nil {
-    		http.Error(respWriter, "Invalid ID", http.StatusBadRequest)
-    	return
-	}
+	id := mux.Vars(request)["id"]
 
 	reqBody, error := io.ReadAll(request.Body)
 
 	if error != nil || len(reqBody) == 0 {
-		http.Error(respWriter, "Missing body", http.StatusBadRequest)
+		respWriter.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -163,11 +174,12 @@ func updateCustomer(respWriter http.ResponseWriter, request *http.Request){
 
 	// parse json body
 	if err := json.Unmarshal(reqBody, &newCustomer); err != nil {
-		http.Error(respWriter, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+respWriter.WriteHeader(http.StatusBadRequest)
+
 		return
 	}
 
-	customers_ids := []int{}
+	customers_ids := []string{}
 
 	for _,customer :=range data_base {
 		customers_ids= append(customers_ids, customer.Id)
@@ -192,14 +204,9 @@ func updateCustomer(respWriter http.ResponseWriter, request *http.Request){
 func deleteCustomer(respWriter http.ResponseWriter, request *http.Request){
 	respWriter.Header().Set("Content-Type", "application/json")
 
-	idStr := mux.Vars(request)["id"]
-	id, err := strconv.Atoi(idStr)
+	id := mux.Vars(request)["id"]
 
-    if err != nil {
-        http.Error(respWriter, "Invalid ID", http.StatusBadRequest)
-        return
-    }
-	customers_ids := []int{}
+	customers_ids := []string{}
 
 	for _,customer :=range data_base {
 		customers_ids= append(customers_ids, customer.Id)
@@ -226,7 +233,7 @@ func main() {
 	router.HandleFunc("/", showCustomers)
 	router.HandleFunc("/customers", getCustomers)
 	router.HandleFunc("/customers/{id}", getCustomer)
-	router.HandleFunc("/customers", createCustomer).Methods("POST")
+	router.HandleFunc("/customers", addCustomer).Methods("POST")
 	router.HandleFunc("/customers/{id}", updateCustomer).Methods("PATCH")
 	router.HandleFunc("/customers/{id}", deleteCustomer).Methods("DELETE")
 

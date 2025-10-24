@@ -31,7 +31,7 @@ create a customer
 
 curl -X POST http://localhost:3000/customers/{id}
     -H "Content-Type: application/json" \
-    -d '{Id:4,
+    -d '{
 		Name: "New Consumer",
 		Role: "user",
 		Email:"new.consumer@gmail.com",
