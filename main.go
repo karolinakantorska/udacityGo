@@ -185,7 +185,7 @@ respWriter.WriteHeader(http.StatusBadRequest)
 		customers_ids= append(customers_ids, customer.Id)
 	}
 
-	if slices.Contains(customers_ids, newCustomer.Id){
+	if slices.Contains(customers_ids, id){
 		for i,customer :=range data_base{
 			if id == customer.Id {
 				newCustomer.Id=customer.Id
@@ -230,9 +230,11 @@ func deleteCustomer(respWriter http.ResponseWriter, request *http.Request){
 }
 func main() {
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/", showCustomers)
-	router.HandleFunc("/customers", getCustomers)
-	router.HandleFunc("/customers/{id}", getCustomer)
+
+	router.HandleFunc("/", showCustomers).Methods("GET")
+
+	router.HandleFunc("/customers", getCustomers).Methods("GET")
+	router.HandleFunc("/customers/{id}", getCustomer).Methods("GET")
 	router.HandleFunc("/customers", addCustomer).Methods("POST")
 	router.HandleFunc("/customers/{id}", updateCustomer).Methods("PATCH")
 	router.HandleFunc("/customers/{id}", deleteCustomer).Methods("DELETE")

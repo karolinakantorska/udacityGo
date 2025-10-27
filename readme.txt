@@ -29,32 +29,39 @@ curl http://localhost:3000/customers/{id}
 
 create a customer
 
-curl -X POST http://localhost:3000/customers/{id}
-    -H "Content-Type: application/json" \
-    -d '{
-		Name: "New Consumer",
-		Role: "user",
-		Email:"new.consumer@gmail.com",
-		Phone: "0041 76 123 45 99",
-		Contacted: true,}'
+in windows:
+curl -Method POST "http://localhost:3000/customers" `
+-Headers @{"Content-Type"="application/json"} `
+-Body '{
+"name":"New Consumer",
+"role":"user",
+"email":"new.consumer@gmail.com",
+"phone":41761234599,
+"contacted":true}'
+
 
 4. PATCH http://localhost:3000/customers/{id}
 
 update a customer
 
-curl -X PATCH http://localhost:3000/customers/{id}
-    -H "Content-Type: application/json" \
-    -d '{Id:4,
-		Name: "Michael Smith",
-		Role: "user",
-		Email:"michael.smith@gmail.com",
-		Phone: "0041 76 123 45 99",
-		Contacted: true,}'
+in windows:
+curl -Method PATCH "http://localhost:3000/customers/4" `
+-Headers @{"Content-Type"="application/json"} `
+-Body '{
+"id":"4",
+"name":"Michael Doe",
+"role":"user",
+"email":"michael.doe@gmail.com",
+"phone":41761234599,
+"contacted":true
+}'
+
 
 5. DELETE http://localhost:3000/customers/{id}
 delete a customer
 
-curl -X DELETE http://localhost:3000/customers/{id}
+in windows:
+curl -Method DELETE http://localhost:3000/customers/2
 
 
 # development instalation
@@ -66,3 +73,4 @@ go mod init udacityGo
 go get github.com/gorilla/mux
 
 go mod tidy
+
